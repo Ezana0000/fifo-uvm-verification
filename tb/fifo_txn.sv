@@ -9,7 +9,10 @@
 class fifo_txn;
     rand bit       wr_en;
     rand bit       rd_en;
-    rand bit [7:0] data;
+    rand bit [7:0] data;       // used only when driving stimulus
+
+    bit [7:0]      wr_data;    // used only by the monitor's observations
+    bit [7:0]      rd_data;    // used only by the monitor's observations
 
     constraint c_dist {
         wr_en dist { 1 :/ 60, 0 :/ 40 };   // bias toward writes so the FIFO fills up
