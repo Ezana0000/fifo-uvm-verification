@@ -18,13 +18,13 @@ class fifo_monitor;
 
     task automatic run();
         forever begin
-            @(posedge vif.clk);
+            @(negedge vif.clk);   // sample mid-cycle, after same-edge NBA updates settle
             begin
-                fifo_txn txn = new();
-                txn.wr_en = vif.wr_en;
-                txn.rd_en = vif.rd_en;
-                // on a write, record what went in; on a read, record what came out
-                txn.data  = vif.wr_en ? vif.data_in : vif.data_out;
+                automatic fifo_txn txn = new();
+                txn.wr_en   = vif.wr_en;
+                txn.rd_en   = vif.rd_en;
+                txn.wr_data = vif.data_in;
+                txn.rd_data = vif.data_out;
                 mon2scb.put(txn);
             end
         end
