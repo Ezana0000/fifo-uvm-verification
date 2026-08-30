@@ -37,19 +37,33 @@ simulation.
 
 ## What I Found
 
-*[Fill this in after you run it — this is the most important part of the
-whole README. Example: "Constrained-random testing surfaced a case where
-simultaneous read+write while the FIFO was exactly full caused [specific
-behavior]." If your first pass came back clean, that's a legitimate result
-too — say what you specifically stress-tested for and why: "Biased
-constraints toward the full/empty boundary and simultaneous read+write
-since that's where FIFO bugs most commonly hide, and the scoreboard/
-assertions confirmed correct behavior across 500 randomized transactions."]*
+Debugging this environment surfaced three real issues, each a genuinely
+common category of verification mistake:
+
+1. **Simulator portability** — an implicitly-typed local variable lifetime
+   that Riviera-PRO only warned about but Questa treated as a hard error.
+2. **Monitor conflating simultaneous events** — the monitor originally used
+   a single shared data field with a ternary (`wr_en ? data_in : data_out`)
+   to capture transactions, which silently dropped the read data whenever a
+   write and read happened on the same cycle. Fixed by tracking write and
+   read data in separate fields.
+3. **Scoreboard evaluating full/empty against the wrong state** — the
+   reference model originally pushed new write data *before* checking
+   whether a same-cycle read should pop it, letting a same-cycle
+   write+read-while-empty scenario succeed in the model when real hardware
+   (which evaluates `full`/`empty` from state *before* that cycle's write
+   commits) correctly blocks it. This caused a cascading off-by-one through
+   the rest of the test. Fixed by evaluating write- and read-validity
+   against the same pre-cycle snapshot, mirroring the DUT's actual timing.
+
+Final result: **258 checks, 0 errors, 100% functional coverage**, including
+the simultaneous-read+write-while-full and simultaneous-read+write-while-empty
+cross-coverage bins.
 
 ## Coverage Results
 
-*[Insert your final coverage percentage here after running, and add your
-screenshot to `docs/coverage_report.png`]*
+**Functional coverage: 100.00%** — all coverpoints and cross-coverage bins
+hit, including simultaneous read+write under both full and empty conditions.
 
 ![Coverage Report](docs/coverage_report.png)
 
@@ -60,7 +74,7 @@ screenshot to `docs/coverage_report.png`]*
 ## How to Run
 
 See [`sim/run_instructions.md`](sim/run_instructions.md). Built and tested
-using Aldec Riviera-PRO on EDA Playground for full SystemVerilog class and
+using Siemens Questa on EDA Playground for full SystemVerilog class and
 mailbox support.
 
 ## Why I Built This
