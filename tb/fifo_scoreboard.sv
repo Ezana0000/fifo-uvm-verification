@@ -24,20 +24,30 @@ class fifo_scoreboard;
     task automatic run();
         fifo_txn txn;
         forever begin
+            automatic bit       wr_valid;
+            automatic bit       rd_valid;
+            automatic bit [7:0] expected;
+
             mon2scb.get(txn);
 
-            if (txn.wr_en && ref_model.size() < 16)
-                ref_model.push_back(txn.data);
+            // Evaluate both against the SAME pre-cycle size, mirroring how the
+            // real hardware's full/empty flags reflect state from before this
+            // cycle's write commits -- not a snapshot updated mid-check.
+            wr_valid = txn.wr_en && (ref_model.size() < 16);
+            rd_valid = txn.rd_en && (ref_model.size() > 0);
 
-            if (txn.rd_en && ref_model.size() > 0) begin
-                bit [7:0] expected = ref_model.pop_front();
+            if (rd_valid) begin
+                expected = ref_model.pop_front();
                 checks++;
-                if (expected !== txn.data) begin
+                if (expected !== txn.rd_data) begin
                     errors++;
                     $error("MISMATCH at time %0t: expected=%0h actual=%0h",
-                            $time, expected, txn.data);
+                            $time, expected, txn.rd_data);
                 end
             end
+
+            if (wr_valid)
+                ref_model.push_back(txn.wr_data);
         end
     endtask
 
